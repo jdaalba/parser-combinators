@@ -10,4 +10,10 @@ class ParsersTest extends AnyFlatSpec {
     assertResult(None)(parseChar('c')("abbra"))
     assertResult(Some(('a', "bbra")))(parseChar('a')("abbra"))
   }
+
+  "parseString" should "parse a string" in {
+    assertResult(Some(("", "abbra")))(parseString("")("abbra"))
+    assertResult(None)(parseString("abbra")("cadabbra"))
+    assertResult(Some(("abbra", " cadabbra")))(parseString("abbra")("abbra cadabbra"))
+  }
 }
