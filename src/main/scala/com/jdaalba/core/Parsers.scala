@@ -1,6 +1,6 @@
-package com.jdaalba
+package com.jdaalba.core
 
-import com.jdaalba.Parsers.ParserOps.{skipL, skipR}
+import com.jdaalba.core.Parsers.ParserOps.{skipL, skipR}
 import scalaz.Functor
 
 import scala.language.{implicitConversions, postfixOps}

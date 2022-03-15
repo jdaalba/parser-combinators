@@ -1,11 +1,10 @@
-package com.jdaalba
+package com.jdaalba.core
 
 import org.scalatest.flatspec.AnyFlatSpec
 
 class ParsersTest extends AnyFlatSpec {
 
-  import com.jdaalba.Parsers._
-  import com.jdaalba.Parsers.ParserOps._
+  import com.jdaalba.core.Parsers._
 
   "parseChar" should "parse a character" in {
     assertResult(None)(parseChar('c')("abbra"))
