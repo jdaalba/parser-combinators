@@ -3,6 +3,7 @@ package com.jdaalba.core
 import com.jdaalba.core.Parsers.ParserOps.{skipL, skipR}
 import scalaz.Functor
 
+import scala.annotation.tailrec
 import scala.language.{implicitConversions, postfixOps}
 
 object Parsers {
@@ -12,8 +13,37 @@ object Parsers {
 
   def parseChar(c: Char): Parser[Char] = parseString(c toString) map (_ charAt 0)
 
-  def parseString(s: String): Parser[String] =
-    input => if (input startsWith s) Some(s, input substring s.length) else None
+  def parseString(s: String): Parser[String] = i => if (i startsWith s) Some(s, i substring s.length) else None
+
+  def parseWhile(f: String => Boolean): Parser[String] = i => {
+    @tailrec
+    def g(st: String, tl: String): (String, String) = if (tl == "") {
+      (st, tl)
+    } else if (f(st)) {
+      g(s"$st${tl charAt 0}", tl.tail)
+    } else {
+      (st.substring(0, st.length - 1), st.substring(st.length - 1) + tl)
+    }
+
+
+    g(i.substring(0, 1), i.tail) match {
+      case ("", _) => None
+      case (s, t) => Some(s, t)
+    }
+  }
+
+  def between(s: String): Parser[String] = {
+
+    @tailrec
+    def f(tl: String, st: String = ""): ParseResult[String] =
+      (tl, (s + "(.*)" + s).r findFirstMatchIn st) match {
+        case (t, None) => f(t.tail, st + t.head)
+        case (t, Some(m)) => Some(m group 1, t)
+        case ("", _) => None
+      }
+
+    f(_)
+  }
 
   // implicit constructors
   implicit def char(c: Char): Parser[Char] = parseChar(c)
