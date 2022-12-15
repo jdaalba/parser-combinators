@@ -22,10 +22,27 @@ class JsonParserTest extends AnyFlatSpec {
   }
 
   "JsonParser" should "parse an array token" in {
-    assertResult(Some((JArray(List(JNull)), "")))(JsonParser("[null]"))
-    assertResult(Some((JArray(List(JBoolean(true))), "")))(JsonParser("[true]"))
-    assertResult(Some((JArray(List(JString("foo"), JString("bar"))), "")))(JsonParser("[\"foo\",\"bar\"]"))
-    assertResult(Some((JArray(List(JArray(List(JString("foo"))))), "")))(JsonParser("[[\"foo\"]]"))
-    assertResult(Some((JArray(List(JArray(List(JString("foo"))), JArray(List(JBoolean(true), JBoolean(false))))), "")))(JsonParser("[[\"foo\"],[true,false]]"))
+    assertResult(Some((JArray(JNull), "")))(JsonParser("[null]"))
+    assertResult(Some((JArray(JBoolean(true)), "")))(JsonParser("[true]"))
+    assertResult(Some((JArray(JString("foo"), JString("bar")), "")))(JsonParser("[\"foo\",\"bar\"]"))
+    assertResult(Some((JArray(JArray(JString("foo"))), "")))(JsonParser("[[\"foo\"]]"))
+    assertResult(Some((JArray(JArray(JString("foo")), JArray(JBoolean(true), JBoolean(false))), "")))(JsonParser("[[\"foo\"],[true,false]]"))
+    assertResult(Some((JArray(JObject("foo" -> JNull)), "")))(JsonParser("""[{"foo":null}]"""))
+  }
+
+  "JsonParser" should "parse a JSON object" in {
+    assertResult(
+      Some((
+        JObject(
+          "foo" -> JString("val1"),
+          "bar" -> JArray(JBoolean(true), JBoolean(false)),
+          "baz" -> JObject(
+            "e1" -> JNumber(123),
+            "e2" -> JNull
+          )
+        ),
+        ""
+      ))
+    )(JsonParser("""{"foo":"val1","bar":[true,false],"baz":{"e1":123,"e2":null}}"""))
   }
 }

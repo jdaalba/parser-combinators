@@ -12,7 +12,7 @@ object JsonParser extends Parser[JToken] {
 
   override def apply(string: String): ParseResult[JToken] = parse(string)
 
-  private def parse: JParser = jnull <|> jboolean <|> jnumber <|> jstring <|> jarray
+  private def parse: JParser = jnull <|> jboolean <|> jnumber <|> jstring <|> jarray <|> jobject
 
   private def jnull: JParser = tok("null").map(_ => JNull)
 
@@ -20,20 +20,41 @@ object JsonParser extends Parser[JToken] {
 
   private def jnumber: JParser = matches(_ isDigit) map (JNumber compose (_ toInt))
 
-  private def jstring: JParser = '"' *> matches(_ != '"') <* '"' map JString
+  private def jstring: Parser[JString] = '"' *> matches(_ != '"') <* '"' map JString
 
-  private def jarray:JParser = '[' *> arrayElementParser <*']'
+  private def jarray: JParser = '[' *> arrayElementParser <* ']'
+
   private def arrayElementParser: JParser = inp => {
 
     def f(s: String): ParseResult[List[JToken]] = {
       if (s startsWith "]") return Some((Nil, s))
       ((',' <|> "") *> JsonParser)(s) match {
-        case Some((jtoken, tail)) => f (tail) map (t => (jtoken :: t._1, t._2))
+        case Some((jtoken, tail)) => f(tail) map (t => (jtoken :: t._1, t._2))
         case _ => None
       }
     }
 
     f(inp) map (t => (JArray(t._1), t._2))
+  }
+
+  private def jobject: JParser = '{' *> objectElementParser <* '}'
+
+  private def objectElementParser: Parser[JObject] = {
+    inp => {
+      def f(s: String): ParseResult[Map[String, JToken]] = {
+        if (s startsWith "}") {
+          Some((Map(), s))
+        } else {
+          for {
+            (label, s1) <- ((',' <|> "") *> jstring)(s)
+            (_, s2) <- ':'(s1)
+            (value, s3) <- JsonParser(s2)
+            (m2, s4) <- f(s3)
+          } yield (Map(label.s -> value) ++ m2, s4)
+        }
+      }
+      f(inp) map (t => (JObject(t._1), t._2))
+    }
   }
 }
 
@@ -49,4 +70,13 @@ case class JString(s: String) extends JToken
 
 case class JArray(js: List[JToken]) extends JToken
 
-case class JObject(entries: Map[String, JToken])
+object JArray {
+  def apply(tokens: JToken*): JArray = JArray(tokens.toList)
+}
+
+case class JObject(entries: Map[String, JToken]) extends JToken
+
+object JObject {
+
+  def apply(tuple: (String, JToken)*): JObject = JObject(tuple.toMap)
+}
