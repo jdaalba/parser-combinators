@@ -14,48 +14,40 @@ object JsonParser extends Parser[JToken] {
 
   private def parse: JParser = jnull <|> jboolean <|> jnumber <|> jstring <|> jarray <|> jobject
 
-  private def jnull: JParser = tok("null").map(_ => JNull)
+  private def jnull: JParser = "null" replaceVal JNull
 
-  private def jboolean: JParser = ("true" <|> "false") map (JBoolean compose (_ toBoolean))
+  private def jboolean: JParser = ("true" <|> "false") map (_ toBoolean) map JBoolean
 
-  private def jnumber: JParser = matches(_ isDigit) map (JNumber compose (_ toInt))
+  private def jnumber: JParser = matches(_ isDigit) map (_ toInt) map JNumber
 
   private def jstring: Parser[JString] = '"' *> matches(_ != '"') <* '"' map JString
 
   private def jarray: JParser = '[' *> arrayElementParser <* ']'
 
-  private def arrayElementParser: JParser = inp => {
+  private def isEmptyOrSeparatedByComma: Parser[Any] = ',' <|> empty
 
-    def f(s: String): ParseResult[List[JToken]] = {
-      if (s startsWith "]") return Some((Nil, s))
-      ((',' <|> "") *> JsonParser)(s) match {
-        case Some((jtoken, tail)) => f(tail) map (t => (jtoken :: t._1, t._2))
-        case _ => None
-      }
+  private def arrayElementParser: Parser[JArray] = inp =>
+    if (inp startsWith "]") {
+      Some((JArray(), inp))
+    } else {
+      for {
+        (elem, tail1) <- (isEmptyOrSeparatedByComma *> JsonParser)(inp)
+        (list, tail2) <- arrayElementParser(tail1)
+      } yield (JArray(elem) ++ list, tail2)
     }
-
-    f(inp) map (t => (JArray(t._1), t._2))
-  }
 
   private def jobject: JParser = '{' *> objectElementParser <* '}'
 
-  private def objectElementParser: Parser[JObject] = {
-    inp => {
-      def f(s: String): ParseResult[Map[String, JToken]] = {
-        if (s startsWith "}") {
-          Some((Map(), s))
-        } else {
-          for {
-            (label, s1) <- ((',' <|> "") *> jstring)(s)
-            (_, s2) <- ':'(s1)
-            (value, s3) <- JsonParser(s2)
-            (m2, s4) <- f(s3)
-          } yield (Map(label.s -> value) ++ m2, s4)
-        }
-      }
-      f(inp) map (t => (JObject(t._1), t._2))
+  private def objectElementParser: Parser[JObject] = inp =>
+    if (inp startsWith "}") {
+      Some((JObject(), inp))
+    } else {
+      for {
+        (label, tail1) <- (isEmptyOrSeparatedByComma *> jstring <* ':').map(_.s)(inp) // parses key
+        (value, tail2) <- JsonParser(tail1) // parses value
+        (jObj2, tail3) <- objectElementParser(tail2) // parses next tuple
+      } yield (JObject(label -> value) ++ jObj2, tail3)
     }
-  }
 }
 
 sealed trait JToken
@@ -68,13 +60,21 @@ case class JNumber(i: Int) extends JToken
 
 case class JString(s: String) extends JToken
 
-case class JArray(js: List[JToken]) extends JToken
+case class JArray(js: List[JToken]) extends JToken {
+
+  def ++(other: JArray): JArray = JArray(js ++ other.js)
+}
+
 
 object JArray {
+
   def apply(tokens: JToken*): JArray = JArray(tokens.toList)
 }
 
-case class JObject(entries: Map[String, JToken]) extends JToken
+case class JObject(entries: Map[String, JToken]) extends JToken {
+
+  def ++(other: JObject): JObject = JObject(entries ++ other.entries)
+}
 
 object JObject {
 

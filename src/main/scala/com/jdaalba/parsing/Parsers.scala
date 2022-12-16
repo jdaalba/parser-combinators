@@ -9,20 +9,23 @@ object Parsers {
   type ParseResult[+A] = Option[(A, String)]
 
   def char(c: Char): Parser[Char] = i => i headOption match {
-    case Some(x) if c == x => Some((c, i tail))
+    case Some(`c`) => Some((c, i tail))
     case _ => None
   }
 
-  def string(s: String): Parser[String] = i => if (s isEmpty) {
-    Some(("", i))
-  } else {
-    s.headOption.flatMap(_(i)).flatMap(t => s.tail(t._2) map (c => (t._1 + c._1, c._2)))
-  }
+  def string(s: String): Parser[String] = i =>
+    if (s isEmpty) {
+      Some(("", i))
+    } else {
+      s.head(i) flatMap (t => s.tail(t._2) map (c => (t._1 + c._1, c._2)))
+    }
 
   def point[A](a: => A): Parser[A] = ParserOps point a
 
   def matches(f: Char => Boolean): Parser[String] = inp => inp.headOption.filter(f)
     .flatMap(c => matches(f)(inp tail).map(t => (c + t._1, t._2)).orElse(Some(c toString, inp.tail)))
+
+  def empty: Parser[String] = ""
 
   implicit def toChar: Char => Parser[Char] = char
 
@@ -31,10 +34,10 @@ object Parsers {
   object ParserOps extends Monad[Parser] {
 
     // Parser as Functor
-    /*override def map[A, B](fa: Parser[A])(f: A => B): Parser[B] = fa(_) match {
+    override def map[A, B](fa: Parser[A])(f: A => B): Parser[B] = fa(_) match {
       case Some((v, out)) => Some((f(v), out))
       case _ => None
-    }*/
+    }
 
     // Parser as Monad
     override def bind[A, B](fa: Parser[A])(f: A => Parser[B]): Parser[B] = fa(_) match {
@@ -62,9 +65,11 @@ object Parsers {
 
     def *>[B](p: => Parser[B]): Parser[B] = self(_) flatMap (t => p(t._2))
 
-    def <*(p: =>Parser[Any]): Parser[A] = inp => for {
+    def <*(p: => Parser[Any]): Parser[A] = inp => for {
       o1 <- self(inp)
       o2 <- p(o1._2)
     } yield (o1._1, o2._2)
+
+    def replaceVal[B](b: B): Parser[B] = self map (_ => b)
   }
 }
