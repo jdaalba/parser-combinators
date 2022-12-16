@@ -34,8 +34,8 @@ class ParsersTest extends AnyFlatSpec {
   }
 
   "<|>" should "take first if not empty or second" in {
-    assertResult(Some('a', "bba"))(('a' <|> 'b') ("abba"))
-    assertResult(Some('b', "ba"))(('a' <|> 'b') ("bba"))
+    assertResult(Some('a', "bba"))(('a' <|> 'b')("abba"))
+    assertResult(Some('b', "ba"))(('a' <|> 'b')("bba"))
   }
 
   "*>" should "ignore left parser if matches" in {
@@ -59,9 +59,9 @@ class ParsersTest extends AnyFlatSpec {
       override def append(f1: String, f2: => String): String = f1 + f2
     }
 
-    val m  = ParserMonoid(StringMonoid)
+    val m = ParserMonoid(StringMonoid)
 
-    assertResult(Some(("ab","bra")))(m.append("a", "b")("abbra"))
+    assertResult(Some(("ab", "bra")))(m.append("a", "b")("abbra"))
     assertResult(None)(m.append("a", "b")("foo"))
   }
 }

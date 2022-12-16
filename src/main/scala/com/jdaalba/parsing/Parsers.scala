@@ -8,43 +8,44 @@ object Parsers {
 
   type ParseResult[+A] = Option[(A, String)]
 
-  def char(c: Char): Parser[Char] = i => i headOption match {
-    case Some(`c`) => Some((c, i tail))
-    case _ => None
-  }
-
-  def string(s: String): Parser[String] = i =>
-    if (s isEmpty) {
-      Some(("", i))
-    } else {
-      s.head(i) flatMap (t => s.tail(t._2) map (c => (t._1 + c._1, c._2)))
+  def char(c: Char): Parser[Char] = i =>
+    i headOption match {
+      case Some(`c`) => (c, i tail)
+      case _ => None
     }
+
+  def string: String => Parser[String] = {
+    case "" => point("")
+    case in => in.head $ _ flatMap {
+      case (st1, tl1) => in.tail $ tl1 map {
+        case (st2, tl2) => (st1 + st2, tl2)
+      }
+    }
+  }
 
   def point[A](a: => A): Parser[A] = ParserOps point a
 
-  def matches(f: Char => Boolean): Parser[String] = inp => inp.headOption.filter(f)
-    .flatMap(c => matches(f)(inp tail).map(t => (c + t._1, t._2)).orElse(Some(c toString, inp.tail)))
+  def matches(f: Char => Boolean): Parser[String] = inp =>
+    inp.headOption.filter(f)
+      .flatMap(c => matches(f)(inp tail).map {
+        case (c2, t2) => (c + c2, t2)
+      }.orElse((c toString, inp.tail)))
 
   implicit def toChar: Char => Parser[Char] = char
 
   implicit def tok: String => Parser[String] = string
 
+  implicit def toParseResult[A](t: (A, String)): ParseResult[A] = Some(t)
+
   object ParserOps extends Monad[Parser] {
 
-    // Parser as Functor
-    override def map[A, B](fa: Parser[A])(f: A => B): Parser[B] = fa(_) match {
-      case Some((v, out)) => Some((f(v), out))
-      case _ => None
-    }
+    override def bind[A, B](fa: Parser[A])(f: A => Parser[B]): Parser[B] =
+      fa $ _ match {
+        case Some((a, out)) => f(a) $ out
+        case _ => None
+      }
 
-    // Parser as Monad
-    override def bind[A, B](fa: Parser[A])(f: A => Parser[B]): Parser[B] = fa(_) match {
-      case Some((a, out)) => f(a)(out)
-      case _ => None
-    }
-
-    // Parser as Applicative
-    override def point[A](a: => A): Parser[A] = inp => Some((a, inp))
+    override def point[A](a: => A): Parser[A] = (a, _)
   }
 
   case class ParserMonoid[A](monoid: Monoid[A]) extends Monoid[Parser[A]] {
@@ -63,21 +64,25 @@ object Parsers {
 
     def apply(string: String): ParseResult[A]
 
+    def $: String => ParseResult[A] = apply
+
     def map[B](f: A => B): Parser[B] = ParserOps.map(self)(f)
 
     def bind[B](f: A => Parser[B]): Parser[B] = ParserOps.bind(self)(f)
 
-    def <|>[B >: A](pb: Parser[B]): Parser[B] = inp => self(inp) match {
-      case None => pb(inp)
-      case r => r
-    }
+    def <|>[B >: A](pb: Parser[B]): Parser[B] = inp =>
+      self $ inp match {
+        case None => pb $ inp
+        case rb => rb
+      }
 
     def *>[B](p: => Parser[B]): Parser[B] = self(_) flatMap (t => p(t._2))
 
-    def <*(p: => Parser[Any]): Parser[A] = inp => for {
-      o1 <- self(inp)
-      o2 <- p(o1._2)
-    } yield (o1._1, o2._2)
+    def <*(p: => Parser[Any]): Parser[A] = inp =>
+      for {
+        (a, t1) <- self $ inp
+        (_, t2) <- p $ t1
+      } yield (a, t2)
 
     def ?*>[B](p: => Parser[B]): Parser[B] = p <|> (self *> p)
 

@@ -10,7 +10,7 @@ object JsonParser extends Parser[JToken] {
 
   type JParser = Parser[JToken]
 
-  override def apply(string: String): ParseResult[JToken] = parse(string)
+  override def apply(string: String): ParseResult[JToken] = parse $ string
 
   private def parse: JParser = jnull <|> jboolean <|> jnumber <|> jstring <|> jarray <|> jobject
 
@@ -25,11 +25,10 @@ object JsonParser extends Parser[JToken] {
   private def jarray: JParser = '[' *> arrayElementParser <* ']'
 
   private def arrayElementParser: Parser[JArray] = inp =>
-    if (inp startsWith "]") {
-      Some((JArray(), inp))
-    } else {
-      for {
-        (elem, tail1) <- (JsonParser <*? ',')(inp)
+    ']' $ inp match {
+      case Some(_) => point(JArray())(inp)
+      case None => for {
+        (elem, tail1) <- (JsonParser <*? ',') $ inp
         (list, tail2) <- arrayElementParser(tail1)
       } yield (JArray(elem) ++ list, tail2)
     }
@@ -37,13 +36,12 @@ object JsonParser extends Parser[JToken] {
   private def jobject: JParser = '{' *> objectElementParser <* '}'
 
   private def objectElementParser: Parser[JObject] = inp =>
-    if (inp startsWith "}") {
-      Some((JObject(), inp))
-    } else {
-      for {
-        (label, tail1) <- (jstring <* ':').map(_.s)(inp) // parses key
-        (value, tail2) <- (JsonParser <*? ',')(tail1) // parses value
-        (jObj2, tail3) <- objectElementParser(tail2) // parses next tuple
+    '}' $ inp match {
+      case Some(_) => point(JObject()) $ inp
+      case None => for {
+        (label, tail1) <- (jstring <* ':') map (_.s) $ inp // parses key
+        (value, tail2) <- (JsonParser <*? ',') $ tail1 // parses value
+        (jObj2, tail3) <- objectElementParser $ tail2 // parses next tuple
       } yield (JObject(label -> value) ++ jObj2, tail3)
     }
 }
