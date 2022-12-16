@@ -24,14 +24,12 @@ object JsonParser extends Parser[JToken] {
 
   private def jarray: JParser = '[' *> arrayElementParser <* ']'
 
-  private def isEmptyOrSeparatedByComma: Parser[Any] = ',' <|> empty
-
   private def arrayElementParser: Parser[JArray] = inp =>
     if (inp startsWith "]") {
       Some((JArray(), inp))
     } else {
       for {
-        (elem, tail1) <- (isEmptyOrSeparatedByComma *> JsonParser)(inp)
+        (elem, tail1) <- (JsonParser <*? ',')(inp)
         (list, tail2) <- arrayElementParser(tail1)
       } yield (JArray(elem) ++ list, tail2)
     }
@@ -43,8 +41,8 @@ object JsonParser extends Parser[JToken] {
       Some((JObject(), inp))
     } else {
       for {
-        (label, tail1) <- (isEmptyOrSeparatedByComma *> jstring <* ':').map(_.s)(inp) // parses key
-        (value, tail2) <- JsonParser(tail1) // parses value
+        (label, tail1) <- (jstring <* ':').map(_.s)(inp) // parses key
+        (value, tail2) <- (JsonParser <*? ',')(tail1) // parses value
         (jObj2, tail3) <- objectElementParser(tail2) // parses next tuple
       } yield (JObject(label -> value) ++ jObj2, tail3)
     }

@@ -1,6 +1,6 @@
 package com.jdaalba.parsing
 
-import scalaz.Monad
+import scalaz.{Monad, Monoid}
 
 import scala.language.{implicitConversions, postfixOps}
 
@@ -25,8 +25,6 @@ object Parsers {
   def matches(f: Char => Boolean): Parser[String] = inp => inp.headOption.filter(f)
     .flatMap(c => matches(f)(inp tail).map(t => (c + t._1, t._2)).orElse(Some(c toString, inp.tail)))
 
-  def empty: Parser[String] = ""
-
   implicit def toChar: Char => Parser[Char] = char
 
   implicit def tok: String => Parser[String] = string
@@ -49,6 +47,17 @@ object Parsers {
     override def point[A](a: => A): Parser[A] = inp => Some((a, inp))
   }
 
+  case class ParserMonoid[A](monoid: Monoid[A]) extends Monoid[Parser[A]] {
+
+    override def zero: Parser[A] = point(monoid zero)
+
+    override def append(f1: Parser[A], f2: => Parser[A]): Parser[A] = inp =>
+      for {
+        (a1: A, t1: String) <- f1(inp)
+        (a2: A, t2: String) <- f2(t1)
+      } yield (monoid.append(a1, a2), t2)
+  }
+
   trait Parser[+A] {
     self =>
 
@@ -69,6 +78,10 @@ object Parsers {
       o1 <- self(inp)
       o2 <- p(o1._2)
     } yield (o1._1, o2._2)
+
+    def ?*>[B](p: => Parser[B]): Parser[B] = p <|> (self *> p)
+
+    def <*?(p: => Parser[Any]): Parser[A] = (self <* p) <|> self
 
     def replaceVal[B](b: B): Parser[B] = self map (_ => b)
   }

@@ -22,6 +22,7 @@ class JsonParserTest extends AnyFlatSpec {
   }
 
   "JsonParser" should "parse an array token" in {
+    assertResult(None)(JsonParser("[,]"))
     assertResult(Some((JArray(JNull), "")))(JsonParser("[null]"))
     assertResult(Some((JArray(JBoolean(true)), "")))(JsonParser("[true]"))
     assertResult(Some((JArray(JString("foo"), JString("bar")), "")))(JsonParser("[\"foo\",\"bar\"]"))

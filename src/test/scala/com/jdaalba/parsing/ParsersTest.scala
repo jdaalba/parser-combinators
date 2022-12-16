@@ -1,6 +1,7 @@
 package com.jdaalba.parsing
 
 import org.scalatest.flatspec.AnyFlatSpec
+import scalaz.Monoid
 
 import scala.language.postfixOps
 
@@ -35,5 +36,32 @@ class ParsersTest extends AnyFlatSpec {
   "<|>" should "take first if not empty or second" in {
     assertResult(Some('a', "bba"))(('a' <|> 'b') ("abba"))
     assertResult(Some('b', "ba"))(('a' <|> 'b') ("bba"))
+  }
+
+  "*>" should "ignore left parser if matches" in {
+    assertResult(Some(('b', "bra")))(('a' *> 'b')("abbra"))
+  }
+
+  "<*?" should "parse ignoring if exist or not right parser" in {
+    assertResult(Some("a", "bbra"))(("a" <*? '?')("abbra"))
+    assertResult(Some("a", "bra"))(("a" <*? "b")("abbra"))
+  }
+
+  "?*>" should "parse ignoring if exist or not left parser" in {
+    assertResult(Some("b", "bra"))(("a" ?*> "b")("abbra"))
+    assertResult(Some("a", "bbra"))(('?' ?*> "a")("abbra"))
+  }
+
+  "MonoidParserOps" should "append elements" in {
+    object StringMonoid extends Monoid[String] {
+      override def zero: String = ""
+
+      override def append(f1: String, f2: => String): String = f1 + f2
+    }
+
+    val m  = ParserMonoid(StringMonoid)
+
+    assertResult(Some(("ab","bra")))(m.append("a", "b")("abbra"))
+    assertResult(None)(m.append("a", "b")("foo"))
   }
 }
