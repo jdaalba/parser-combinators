@@ -27,9 +27,11 @@ object Parsers {
 
   def matches(f: Char => Boolean): Parser[String] = inp =>
     inp.headOption.filter(f)
-      .flatMap(c => matches(f)(inp tail).map {
-        case (c2, t2) => (c + c2, t2)
-      }.orElse((c toString, inp.tail)))
+      .flatMap { c1 =>
+        matches(f)(inp tail).map {
+          case (c2, t2) => (c1 + c2, t2)
+        }.orElse((c1 toString, inp.tail))
+      }
 
   implicit def toChar: Char => Parser[Char] = char
 
