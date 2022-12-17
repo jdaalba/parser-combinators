@@ -8,6 +8,7 @@ This project writes the building blocks for a functional parsing library written
 ## Implemented parsers
 
 * [JSON parser](https://github.com/jdaalba/parser-combinators/blob/main/src/main/scala/com/jdaalba/parsing/samples/JsonParser.scala)
+* [Morse parser](https://github.com/jdaalba/parser-combinators/blob/main/src/main/scala/com/jdaalba/parsing/samples/MorseParser.scala)
 
 ## Requirements
 
