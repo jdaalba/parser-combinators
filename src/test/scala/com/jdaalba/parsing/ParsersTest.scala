@@ -1,7 +1,7 @@
 package com.jdaalba.parsing
 
+import com.jdaalba.parsing.utils.StringMonoid
 import org.scalatest.flatspec.AnyFlatSpec
-import scalaz.Monoid
 
 import scala.language.postfixOps
 
@@ -53,12 +53,6 @@ class ParsersTest extends AnyFlatSpec {
   }
 
   "MonoidParserOps" should "append elements" in {
-    object StringMonoid extends Monoid[String] {
-      override def zero: String = ""
-
-      override def append(f1: String, f2: => String): String = f1 + f2
-    }
-
     val m = ParserMonoid(StringMonoid)
 
     assertResult(Some(("ab", "bra")))(m.append("a", "b")("abbra"))

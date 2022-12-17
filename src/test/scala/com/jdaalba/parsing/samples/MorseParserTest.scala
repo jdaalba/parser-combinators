@@ -11,4 +11,12 @@ class MorseParserTest extends AnyFlatSpec {
       assertResult(Some((letter toString, "")))(MorseParser $ code)
     }
   }
+
+  "Single word" should "be parsed right" in {
+    assertResult(Some(("HELLO", "")))(MorseParser $ ".... . .-.. .-.. ---")
+  }
+
+  "Sentences" should "be parsed right" in {
+    assertResult(Some(("HELLO WORLD", "")))(MorseParser $ ".... . .-.. .-.. ---   .-- --- .-. .-.. -..")
+  }
 }

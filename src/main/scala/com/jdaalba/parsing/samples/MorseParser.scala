@@ -1,6 +1,7 @@
 package com.jdaalba.parsing.samples
 
 import com.jdaalba.parsing.Parsers.Parser
+import com.jdaalba.parsing.utils.StringMonoid
 
 import scala.language.{implicitConversions, postfixOps}
 
@@ -52,11 +53,23 @@ object MorseParser extends Parser[String] {
     "-..-." -> '/'
   )
 
-  override def apply(v1: String): ParseResult[String] = letterParsers.map(_.toString) $ v1
+  val letterParsers: Parser[String] =
+    codes.toIndexedSeq sortWith {
+      case ((c1, _), (c2, _)) => c1.length > c2.length
+    } map {
+      case (code, letter) => code replaceVal letter
+    } reduce (_ <|> _) map (_ toString)
 
-  def letterParsers: Parser[Char] = codes.toIndexedSeq sortWith {
-    case ((c1, _), (c2, _)) => c1.length > c2.length
-  } map {
-    case (code, letter) => code replaceVal letter
-  } reduce (_ <|> _)
+  val parserMonoid: ParserMonoid[String] = ParserMonoid(StringMonoid)
+
+  override def apply(s: String): ParseResult[String] = s match {
+    case "" => ("", "")
+    case _ => parserMonoid.append(parseToken, apply) $ s
+  }
+
+  def parseToken: Parser[String] = space <|> letter
+
+  def space: Parser[String] = "  " replaceVal " "
+
+  def letter: Parser[String] = letterParsers <*? " "
 }
